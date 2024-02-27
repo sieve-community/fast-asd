@@ -6,6 +6,7 @@ import queue
 import time
 
 SPEAKER_DETECTION_MODEL = "sieve/talknet-asd"
+SPEAKER_DETECTION_IN_MEMORY_THRESHOLD = 3000
 OBJECT_DETECTION_MODEL = "sieve/yolov8"
 
 def push_video_segments_to_object_detection(video_segment, file, frame_interval=600, speed_boost=False):
@@ -352,7 +353,8 @@ def process(
                         start_time=future["start"] / fps, # start 10% into the segment to avoid scene boundaries
                         end_time=future["end"] / fps,
                         return_visualization=False,
-                        face_boxes=face_detection_outputs
+                        face_boxes=face_detection_outputs,
+                        in_memory_threshold=SPEAKER_DETECTION_IN_MEMORY_THRESHOLD
                     )
         for i, future in enumerate(speaker_detection_futures):
             if (start >= future["start"] and start <= future["end"]) or (end >= future["start"] and end <= future["end"]) or (start <= future["start"] and end >= future["end"]):
@@ -374,7 +376,8 @@ def process(
                             start_time=future["start"] / fps, # start 10% into the segment to avoid scene boundaries
                             end_time=future["end"] / fps,
                             return_visualization=False,
-                            face_boxes=face_detection_outputs
+                            face_boxes=face_detection_outputs,
+                            in_memory_threshold=SPEAKER_DETECTION_IN_MEMORY_THRESHOLD
                         )
 
                 if "result" not in speaker_detection_futures[i]:
@@ -394,7 +397,8 @@ def process(
                     start_time=future["start"] / fps, # start 10% into the segment to avoid scene boundaries
                     end_time=future["end"] / fps,
                     return_visualization=False,
-                    face_boxes=face_detection_outputs
+                    face_boxes=face_detection_outputs,
+                    in_memory_threshold=SPEAKER_DETECTION_IN_MEMORY_THRESHOLD
                 )
             # print("bro",len(speaker_detection_futures), len(object_detection_futures))
             if speaker_detection_futures[i]["future"] and "result" not in speaker_detection_futures[i] and speaker_detection_futures[i]["future"].done():
@@ -410,7 +414,8 @@ def process(
                         start_time=future["start"] / fps, # start 10% into the segment to avoid scene boundaries
                         end_time=future["end"] / fps,
                         return_visualization=False,
-                        face_boxes=face_detection_outputs
+                        face_boxes=face_detection_outputs,
+                        in_memory_threshold=SPEAKER_DETECTION_IN_MEMORY_THRESHOLD
                     )
                     continue
         
@@ -447,7 +452,8 @@ def process(
                         start_time=future["start"] / fps,
                         end_time=future["end"] / fps,
                         return_visualization=False,
-                        face_boxes=face_detection_outputs
+                        face_boxes=face_detection_outputs,
+                        in_memory_threshold=SPEAKER_DETECTION_IN_MEMORY_THRESHOLD
                     )
                     continue
 
