@@ -63,6 +63,7 @@ metadata = sieve.Metadata(
     title="Active Speaker Detection",
     description="State-of-the-art active speaker detection based on new, efficent face and speaker detection models.",
     tags=["Video"],
+    code_url="https://github.com/sieve-community/fast-asd",
     image=sieve.Image(url="https://storage.googleapis.com/sieve-public-data/asd/speaker-icon.webp"),
     readme=open("README.md", "r").read(),
 )
