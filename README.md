@@ -6,6 +6,8 @@ It contains of two parts:
 - The open-source implementation of the [active speaker detection](https://www.sievedata.com/functions/sieve/active_speaker_detection) application that runs on the [Sieve](https://www.sievedata.com/) platform.
 - The standalone, optimized implementation of [TalkNet](https://github.com/TaoRuijie/TalkNet-ASD), a leading model for active speaker detection.
 
+The TalkNet implementation significantly improve on the original primarily from the perspective of performance. The pre-processing and post-processing steps are faster and it support variable frame-rate videos (not just 25 FPS like the original). The active speaker detection implementation is a further productionized version of this that parallelizes processing through TalkNet and a separate standalone face detection model to provide faster, higher-quality speaker tracking and detection results.
+
 ## Usage
 
 ### TalkNet
