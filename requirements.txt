@@ -1,0 +1,9 @@
+numpy==1.23.5
+filterpy==1.4.5
+opencv-python==4.7.0.72
+scenedetect[opencv]
+lap==0.4.0
+sortedcontainers
+supervision
+vidgear[core]
+imageio[ffmpeg]

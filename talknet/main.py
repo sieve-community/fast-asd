@@ -11,7 +11,7 @@ metadata = sieve.Metadata(
 )
 
 @sieve.Model(
-    name="talknet-split",
+    name="talknet-asd",
     python_packages=[
         "torch>=1.6.0",
         "torchaudio>=0.6.0",
