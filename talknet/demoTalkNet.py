@@ -360,7 +360,8 @@ def main(
     start_seconds = 0,
     end_seconds = None,
     return_visualization = False,
-    face_boxes = ""
+    face_boxes = "",
+	in_memory_threshold = 0
 ):
 	import subprocess
 	# This preprocesstion is modified based on this [repository](https://github.com/joonson/syncnet_python).
@@ -396,7 +397,7 @@ def main(
 	os.makedirs(pyworkPath, exist_ok = True) # Save the results in this process by the pckl method
 	os.makedirs(pycropPath, exist_ok = True) # Save the detected face clips (audio+video) in this process
 	
-	STORE_FRAMES_IN_MEMORY_THRESHOLD = 5000
+	STORE_FRAMES_IN_MEMORY_THRESHOLD = in_memory_threshold
 
     # Extract video information
     # get video duration

@@ -38,7 +38,7 @@ metadata = sieve.Metadata(
         "gdown --id 1AbN9fCf9IexMxEKXLQY2KYBlb-IhSEea -O /root/.cache/models/pretrain_TalkSet.model"
     ],
     cuda_version="11.8",
-    gpu=sieve.gpu.L4(split=3),
+    gpu=sieve.gpu.T4(),
     metadata=metadata
 )
 class TalkNetASD:
@@ -53,6 +53,7 @@ class TalkNetASD:
         end_time: float = -1,
         return_visualization: bool = False,
         face_boxes: str = "",
+        in_memory_threshold: int = 0,
     ):
         """
         :param video: a video to process
@@ -60,6 +61,7 @@ class TalkNetASD:
         :param end_time: the end time of the video to process (in seconds). If -1, process until the end of the video.
         :param return_visualization: whether to return the visualization of the video.
         :param face_boxes: a string of face boxes in the format "frame_number,x1,y1,x2,y2,x1,y1,x2,y2,..." separated by new lines per frame. If not provided, the model will detect the faces in the video itself to then detect the active speaker.
+        :param in_memory_threshold: the maximum number of frames to load in memory at once. can speed up processing. if 0, this feature is disabled.
         :return: if return_visualization is True, the first element of the tuple is the output of the model, and the second element is the visualization of the video. Otherwise, the first element is the output of the model.
         """
         from demoTalkNet import main
@@ -73,10 +75,10 @@ class TalkNetASD:
             return outputs
             
         if return_visualization:
-            out, video_path = main(self.s, self.DET, video.path, start_seconds=start_time, end_seconds=end_time, return_visualization=return_visualization, face_boxes=face_boxes)
+            out, video_path = main(self.s, self.DET, video.path, start_seconds=start_time, end_seconds=end_time, return_visualization=return_visualization, face_boxes=face_boxes, in_memory_threshold=in_memory_threshold)
             return sieve.Video(path=video_path)
         else:
-            out = main(self.s, self.DET, video.path, start_seconds=start_time, end_seconds=end_time, return_visualization=return_visualization, face_boxes=face_boxes)
+            out = main(self.s, self.DET, video.path, start_seconds=start_time, end_seconds=end_time, return_visualization=return_visualization, face_boxes=face_boxes, in_memory_threshold=in_memory_threshold)
             return transform_out(out)
 
 if __name__ == "__main__":
