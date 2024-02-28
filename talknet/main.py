@@ -38,7 +38,7 @@ metadata = sieve.Metadata(
         "gdown --id 1AbN9fCf9IexMxEKXLQY2KYBlb-IhSEea -O /root/.cache/models/pretrain_TalkSet.model"
     ],
     cuda_version="11.8",
-    gpu=sieve.gpu.T4(),
+    gpu=sieve.gpu.L4(split=3),
     metadata=metadata
 )
 class TalkNetASD:
