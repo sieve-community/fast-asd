@@ -21,7 +21,7 @@ def push_video_segments_to_object_detection(video_segment, file, frame_interval=
         
         sample_box_output = object_detector.push(
             file,
-            confidence_threshold=0,
+            confidence_threshold=0.25,
             start_frame=start_frame,
             end_frame=end_frame,
             models="yolov8n, yolov8n-face" if speed_boost else "yolov8l, yolov8l-face",
@@ -245,7 +245,7 @@ def process(
                     print(f"WARNING: Found failed object detection (frame {future['start']}-{future['end']}), retrying...")
                     object_detection_futures[j]["future"] = sieve.function.get(OBJECT_DETECTION_MODEL).push(
                         file,
-                        confidence_threshold=0,
+                        confidence_threshold=0.25,
                         start_frame=future["start"],
                         end_frame=future["end"],
                         models="yolov8n, yolov8n-face" if speed_boost else "yolov8l, yolov8l-face",
@@ -267,7 +267,7 @@ def process(
                         del object_detection_futures[i]["result"]
                     object_detection_futures[i]["future"] = sieve.function.get(OBJECT_DETECTION_MODEL).push(
                         file,
-                        confidence_threshold=0,
+                        confidence_threshold=0.25,
                         start_frame=object_detection_futures[i]["start"], # start 10% into the segment to avoid scene boundaries
                         end_frame=object_detection_futures[i]["end"],
                         models="yolov8n, yolov8n-face" if speed_boost else "yolov8l, yolov8l-face",
@@ -296,7 +296,7 @@ def process(
                             del object_detection_futures[i]["result"]
                         object_detection_futures[i]["future"] = sieve.function.get(OBJECT_DETECTION_MODEL).push(
                             file,
-                            confidence_threshold=0,
+                            confidence_threshold=0.25,
                             start_frame=future["start"], # start 10% into the segment to avoid scene boundaries
                             end_frame=future["end"],
                             models="yolov8n, yolov8n-face" if speed_boost else "yolov8l, yolov8l-face",
@@ -428,7 +428,7 @@ def process(
                     print(f"WARNING: Found failed object detection (frame {future['start']}-{future['end']}), retrying...")
                     object_detection_futures[i]["future"] = sieve.function.get(OBJECT_DETECTION_MODEL).push(
                         file,
-                        confidence_threshold=0,
+                        confidence_threshold=0.25,
                         start_frame=future["start"], # start 10% into the segment to avoid scene boundaries
                         end_frame=future["end"],
                         models="yolov8n, yolov8n-face" if speed_boost else "yolov8l, yolov8l-face",
