@@ -3,13 +3,12 @@ from utils import get_video_dimensions, get_video_length, create_video_segments
 from custom_types import VideoSegment, Frame, Box
 import threading
 import queue
-import time
 
 SPEAKER_DETECTION_MODEL = "sieve/talknet-asd"
 SPEAKER_DETECTION_IN_MEMORY_THRESHOLD = 3000
 OBJECT_DETECTION_MODEL = "sieve/yolov8"
 
-def push_video_segments_to_object_detection(video_segment, file, frame_interval=600, speed_boost=False):
+def push_video_segments_to_object_detection(video_segment, file, frame_interval=600, models="yolov8l, yolov8l-face"):
     object_detector = sieve.function.get(OBJECT_DETECTION_MODEL)
     # push the video segments to object detection for every frame_interval frames
     total_num_frames = video_segment.end_frame if video_segment.end_frame else int(video_segment.end * video_segment.fps())
@@ -24,8 +23,8 @@ def push_video_segments_to_object_detection(video_segment, file, frame_interval=
             confidence_threshold=0.25,
             start_frame=start_frame,
             end_frame=end_frame,
-            models="yolov8n, yolov8n-face" if speed_boost else "yolov8l, yolov8l-face",
-            fps=5,
+            models=models,
+            fps=2,
             max_num_boxes=30,
         )
 
@@ -115,6 +114,7 @@ def process(
     original_video_height = height
     original_video_length = get_video_length(file.path)
 
+    models = "yolov8l-face" if speed_boost else "yolov8n-face"
     if end_time == -1:
         end_time = original_video_length
 
@@ -147,7 +147,7 @@ def process(
     # Define a wrapper function to call push_video_segments_to_object_detection and put the result in the Queue
     def object_detection_wrapper(original_video, file, result_queue, frame_interval):
         print("Pushing video to object detection...")
-        result = push_video_segments_to_object_detection(original_video, file, frame_interval=frame_interval, speed_boost=speed_boost)
+        result = push_video_segments_to_object_detection(original_video, file, frame_interval=frame_interval, models=models)
         result_queue.put(result)
         print("Done pushing video to object detection")
     
@@ -248,8 +248,8 @@ def process(
                         confidence_threshold=0.25,
                         start_frame=future["start"],
                         end_frame=future["end"],
-                        models="yolov8n, yolov8n-face" if speed_boost else "yolov8l, yolov8l-face",
-                        fps=5,
+                        models=models,
+                        fps=2,
                         max_num_boxes=30,
                     )
                     continue
@@ -270,80 +270,22 @@ def process(
                         confidence_threshold=0.25,
                         start_frame=object_detection_futures[i]["start"], # start 10% into the segment to avoid scene boundaries
                         end_frame=object_detection_futures[i]["end"],
-                        models="yolov8n, yolov8n-face" if speed_boost else "yolov8l, yolov8l-face",
+                        models=models,
                         # face_detection=False,
                         # speed_boost=speed_boost,
-                        fps=5,
+                        fps=2,
                         # interpolate_frames=True,
                         max_num_boxes=30,
                     )
             raise Exception("Object detection failed 10 times, please try again later.")
     
-    def get_detection_payload(start, end):
-        # find all indices that contain the start and end
-        outputs = []
-        for i, future in enumerate(object_detection_futures):
-            if (start >= future["start"] and start <= future["end"]) or (end >= future["start"] and end <= future["end"]) or (start <= future["start"] and end >= future["end"]):
-                for j in range(10):
-                    if j != 0:
-                        print(f"WARNING: Object detection failed, retrying... Attempt {j+1}/10")
-                    try:
-                        if "result" not in future:
-                            object_detection_futures[i]["result"] = list(future["future"].result())
-                        break
-                    except:
-                        if "result" in object_detection_futures[i]:
-                            del object_detection_futures[i]["result"]
-                        object_detection_futures[i]["future"] = sieve.function.get(OBJECT_DETECTION_MODEL).push(
-                            file,
-                            confidence_threshold=0.25,
-                            start_frame=future["start"], # start 10% into the segment to avoid scene boundaries
-                            end_frame=future["end"],
-                            models="yolov8n, yolov8n-face" if speed_boost else "yolov8l, yolov8l-face",
-                            fps=5,
-                            max_num_boxes=30,
-                        )
-                        continue
-                for frame in object_detection_futures[i]["result"]:
-                    if frame["frame_number"] >= start and frame["frame_number"] <= end:
-                        boxes = []
-                        boxes = frame["boxes"]
-                        outputs.append({
-                            "frame_number": frame["frame_number"],
-                            "boxes": boxes,
-                        })
-
-        new_outputs = []
-        for i in range(start, end + 1):
-            frame_segment = None
-            for segment in segments:
-                segment_start_frame = segment.start_frame if segment.start_frame else int(segment.start * original_video_fps)
-                segment_end_frame = segment.end_frame if segment.end_frame else int(segment.end * original_video_fps)
-                if i >= segment_start_frame and i < segment_end_frame:
-                    frame_segment = segment
-                    break
-
-            if frame_segment is None:
-                outputs_to_choose_from = outputs
-            else:
-                outputs_to_choose_from = [output for output in outputs if output["frame_number"] >= segment_start_frame and output["frame_number"] <= segment_end_frame]
-            closest_frame = min(outputs_to_choose_from, key=lambda x: abs(x["frame_number"] - i))
-            # copy the boxes to avoid modifying the original and set the frame number to the current frame
-            new_frame = {
-                "frame_number": i,
-                "boxes": [box.copy() for box in closest_frame["boxes"]],
-            }
-            new_outputs.append(new_frame)
-        
-        assert len(new_outputs) == end - start + 1
-        # print(new_outputs)
-        return new_outputs
-
     def get_speaker_detection_payload(start, end, fps=30):
         # find all indices that contain the start and end
-        for i, future in enumerate(speaker_detection_futures):
-            if (start >= future["start"] and start <= future["end"]) or (end >= future["start"] and end <= future["end"]) or (start <= future["start"] and end >= future["end"]):
-                if not future["future"]:
+        def refresh_speakers():
+            for i, future in enumerate(speaker_detection_futures):
+                in_range = (start >= future["start"] and start <= future["end"]) or (end >= future["start"] and end <= future["end"]) or (start <= future["start"] and end >= future["end"])
+                relevant_future_done = object_detection_futures[i]["future"].done()
+                if not future["future"] and (in_range or relevant_future_done):
                     # this means that we haven't pushed the video to speaker detection yet since face detection is not done
                     # lets find the relevant face detection future, wait for it to be done, and then push the video to speaker detection
                     res = list(get_relevant_face_detection_future(i))
@@ -356,11 +298,16 @@ def process(
                         face_boxes=face_detection_outputs,
                         in_memory_threshold=SPEAKER_DETECTION_IN_MEMORY_THRESHOLD
                     )
+        refresh_speakers()
         for i, future in enumerate(speaker_detection_futures):
             if (start >= future["start"] and start <= future["end"]) or (end >= future["start"] and end <= future["end"]) or (start <= future["start"] and end >= future["end"]):
                 for _ in range(10):  # retry up to 10 times
                     try:
                         if "result" not in speaker_detection_futures[i]:
+                            while not speaker_detection_futures[i]["future"].done():
+                                import time
+                                time.sleep(0.1)
+                                refresh_speakers()
                             speaker_detection_futures[i]["result"] = list(speaker_detection_futures[i]["future"].result())
                         break  # if successful, break the retry loop
                     except Exception as e:
@@ -432,7 +379,7 @@ def process(
                         start_frame=future["start"], # start 10% into the segment to avoid scene boundaries
                         end_frame=future["end"],
                         models="yolov8n, yolov8n-face" if speed_boost else "yolov8l, yolov8l-face",
-                        fps=5,
+                        fps=2,
                         max_num_boxes=30,
                     )
                     continue
@@ -485,9 +432,8 @@ def process(
             start_frame = int(start * fps)
             end_frame = round(end * fps)
 
-        refresh_futures()
-        speaker_payload = get_speaker_detection_payload(start_frame, end_frame, fps=fps)
         def get_frames():
+            speaker_payload = get_speaker_detection_payload(start_frame, end_frame, fps=fps)
             frames = []
             last_frame_number = None
             for frame in speaker_payload:
@@ -563,26 +509,10 @@ def process(
         scene_out["start_timecode"] = seconds_to_timecode(start)
         scene_out["end_timecode"] = seconds_to_timecode(end)
         scene_out["scene_number"] = segment_index
-
-        current_detection_payload = get_detection_payload(start_frame, end_frame)
+        refresh_futures()
         for i, frame in enumerate(get_frames()):
             if not (start_frame <= frame.number <= end_frame):
                 continue
-            # find closest frame in the detection payload
-            closest_frame = min(current_detection_payload, key=lambda x: abs(x["frame_number"] - frame.number))
-            closest_frame_boxes = []
-            for box in closest_frame["boxes"]:
-                # only keep person boxes
-                if box["class_name"] != "person":
-                    continue
-                closest_frame_boxes.append(Box(
-                    x1=box["x1"],
-                    y1=box["y1"],
-                    x2=box["x2"],
-                    y2=box["y2"],
-                    confidence=1.0,
-                    class_id=0,
-                ))
             out_boxes = []
             for box in frame.boxes:
                 out_boxes.append({
@@ -593,24 +523,6 @@ def process(
                     "speaking_score": box.metadata["raw_score"],
                     "active": box.metadata["raw_score"] > 0
                 })
-                # find the person that this box overlaps with the most
-                max_overlap = 0
-                max_overlap_box = None
-                for closest_box in closest_frame_boxes:
-                    overlap = box.overlap_percentage(closest_box)
-                    if overlap > max_overlap:
-                        max_overlap = overlap
-                        max_overlap_box = closest_box
-                
-                if max_overlap_box:
-                    out_boxes[-1]["related_person_box"] = {
-                        "x1": int(max_overlap_box.x1),
-                        "y1": int(max_overlap_box.y1),
-                        "x2": int(max_overlap_box.x2),
-                        "y2": int(max_overlap_box.y2),
-                    }
-                else:
-                    out_boxes[-1]["related_person_box"] = None
 
             # sort by box size
             out_boxes = sorted(out_boxes, key=lambda x: (x['x2'] - x['x1']) * (x['y2'] - x['y1']), reverse=True)
