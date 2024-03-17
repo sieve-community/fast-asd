@@ -510,6 +510,7 @@ def process(
         scene_out["end_timecode"] = seconds_to_timecode(end)
         scene_out["scene_number"] = segment_index
         refresh_futures()
+        batch_frames = []
         for i, frame in enumerate(get_frames()):
             if not (start_frame <= frame.number <= end_frame):
                 continue
@@ -536,13 +537,18 @@ def process(
                     "related_scene": scene_out,
                 }
             else:
-                yield {
+                batch_frames.append({
                     "frame_number": frame.number,
                     "faces": out_boxes,
-                }
+                })
+                if len(batch_frames) == 100:
+                    yield batch_frames
+                    batch_frames = []
             if return_scene_cuts_only:
                 break
             frame_count += 1
+        if not return_scene_data and batch_frames:
+            yield batch_frames
         
 if __name__ == "__main__":
     TEST_URL = "https://storage.googleapis.com/sieve-prod-us-central1-public-file-upload-bucket/d979a930-f2a5-4e0d-84fe-a9b233985c4e/dba9cbf3-8374-44bc-8d9d-cc9833d3f502-input-file.mp4"
