@@ -60,9 +60,9 @@ def get_active_speakers(speaker_frames, alpha=0.5, score_threshold=0):
     return active_speakers
 
 metadata = sieve.Metadata(
-    title="Active Speaker Detection",
+    title="Detect Active Speakers",
     description="State-of-the-art active speaker detection based on new, efficent face and speaker detection models.",
-    tags=["Video"],
+    tags=["Video", "Showcase"],
     code_url="https://github.com/sieve-community/fast-asd",
     image=sieve.Image(url="https://storage.googleapis.com/sieve-public-data/asd/speaker-icon.webp"),
     readme=open("README.md", "r").read(),
