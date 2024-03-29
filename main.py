@@ -8,7 +8,7 @@ SPEAKER_DETECTION_MODEL = "sieve/talknet-asd"
 SPEAKER_DETECTION_IN_MEMORY_THRESHOLD = 3000
 OBJECT_DETECTION_MODEL = "sieve/yolov8"
 
-def push_video_segments_to_object_detection(video_segment, file, frame_interval=600, models="yolov8l, yolov8l-face"):
+def push_video_segments_to_object_detection(video_segment, file, frame_interval=600, models="yolov8l, yolov8l-face", processing_fps=2):
     object_detector = sieve.function.get(OBJECT_DETECTION_MODEL)
     # push the video segments to object detection for every frame_interval frames
     total_num_frames = video_segment.end_frame if video_segment.end_frame else int(video_segment.end * video_segment.fps())
@@ -24,7 +24,7 @@ def push_video_segments_to_object_detection(video_segment, file, frame_interval=
             start_frame=start_frame,
             end_frame=end_frame,
             models=models,
-            fps=2,
+            fps=processing_fps,
             max_num_boxes=30,
         )
 
@@ -99,6 +99,7 @@ def process(
     return_scene_data: bool = False,
     start_time: float = 0,
     end_time: float = -1,
+    processing_fps: float = 2,
 ):
     '''
     :param file: The video file to process
@@ -108,6 +109,7 @@ def process(
     :param return_scene_data: Whether to return the scene data along with the frame data. If True, the scene data will be returned in the "related_scene" field of the output.
     :param start_time: The seconds into the video to start processing from. Defaults to 0.
     :param end_time: The seconds into the video to stop processing at. Defaults to -1, which means the end of the video.
+    :param processing_fps: The framerate to run object detection at for speaker detection. Defaults to 2.
     '''
     width, height = get_video_dimensions(file.path)
     original_video_width = width
@@ -147,7 +149,7 @@ def process(
     # Define a wrapper function to call push_video_segments_to_object_detection and put the result in the Queue
     def object_detection_wrapper(original_video, file, result_queue, frame_interval):
         print("Pushing video to object detection...")
-        result = push_video_segments_to_object_detection(original_video, file, frame_interval=frame_interval, models=models)
+        result = push_video_segments_to_object_detection(original_video, file, frame_interval=frame_interval, models=models, processing_fps=processing_fps)
         result_queue.put(result)
         print("Done pushing video to object detection")
     
@@ -249,7 +251,7 @@ def process(
                         start_frame=future["start"],
                         end_frame=future["end"],
                         models=models,
-                        fps=2,
+                        fps=processing_fps,
                         max_num_boxes=30,
                     )
                     continue
@@ -273,7 +275,7 @@ def process(
                         models=models,
                         # face_detection=False,
                         # speed_boost=speed_boost,
-                        fps=2,
+                        fps=processing_fps,
                         # interpolate_frames=True,
                         max_num_boxes=30,
                     )
@@ -379,7 +381,7 @@ def process(
                         start_frame=future["start"], # start 10% into the segment to avoid scene boundaries
                         end_frame=future["end"],
                         models="yolov8n, yolov8n-face" if speed_boost else "yolov8l, yolov8l-face",
-                        fps=2,
+                        fps=processing_fps,
                         max_num_boxes=30,
                     )
                     continue
