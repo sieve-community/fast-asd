@@ -533,23 +533,24 @@ def process(
             if len(out_boxes) > max_num_faces:
                 out_boxes = out_boxes[:max_num_faces]
             if return_scene_data:
-                yield {
+                batch_frames.append({
                     "frame_number": frame.number,
                     "faces": out_boxes,
                     "related_scene": scene_out,
-                }
+                })
             else:
                 batch_frames.append({
                     "frame_number": frame.number,
                     "faces": out_boxes,
                 })
-                if len(batch_frames) == 100:
-                    yield batch_frames
-                    batch_frames = []
+            if len(batch_frames) == 100:
+                yield batch_frames
+                batch_frames = []
             if return_scene_cuts_only:
+                yield batch_frames
                 break
             frame_count += 1
-        if not return_scene_data and batch_frames:
+        if not return_scene_cuts_only and batch_frames:
             yield batch_frames
         
 if __name__ == "__main__":
