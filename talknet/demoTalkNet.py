@@ -557,7 +557,7 @@ def main(
 	first_frame = max(int(start_seconds * 25), 0)
 	for shot in new_scenes:
 		if shot[1].frame_num - shot[0].frame_num >= min_track: # Discard the shot frames less than minTrack frames
-			allTracks.extend(track_shot(faces[shot[0].frame_num - first_frame:shot[1].frame_num - first_frame])) # 'frames' to present this tracks' timestep, 'bbox' presents the location of the faces
+			allTracks.extend(track_shot(faces[max(0, shot[0].frame_num - first_frame):shot[1].frame_num - first_frame])) # 'frames' to present this tracks' timestep, 'bbox' presents the location of the faces
 	print("Faces tracked in %.3f seconds."%(time.time() - t))
 
 	print("Cropping faces...")
