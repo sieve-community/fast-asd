@@ -35,7 +35,8 @@ metadata = sieve.Metadata(
     run_commands=[
         "pip install pandas",
         "mkdir -p /root/.cache/models",
-        "gdown --id 1AbN9fCf9IexMxEKXLQY2KYBlb-IhSEea -O /root/.cache/models/pretrain_TalkSet.model"
+        "gdown --id 1J-PDWDAkYCdT8T2Nxn3Q_-iOHH_t-9YP -O /root/.cache/models/pretrain_TalkSet.model",
+        "pip install supervision",
     ],
     cuda_version="11.8",
     gpu=sieve.gpu.L4(split=3),
