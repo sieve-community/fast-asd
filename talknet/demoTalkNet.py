@@ -600,6 +600,7 @@ def main(
 	
 	# print('vidtracks', vidTracks)
 	faces_by_scene = {}
+	faces_by_frame = {}
 	for tidx, track in enumerate(vidTracks):
 		score = scores[tidx]
 		for fidx, frame in enumerate(track['track']['frame'].tolist()):
@@ -611,6 +612,9 @@ def main(
 			y2 = int(track['proc_track']['y'][fidx] + track['proc_track']['s'][fidx])
 			# print(frame, fidx, len(faces))
 			faces[frame]['faces'].append({'track_id': tidx, 'raw_score': float(s), 'x1': x1, 'y1': y1, 'x2': x2, 'y2': y2, 'speaking': bool(s >= 0)})
+			if frame not in faces_by_frame:
+				faces_by_frame[frame] = []
+			faces_by_frame[frame].append({'track_id': tidx, 'raw_score': float(s), 'x1': x1, 'y1': y1, 'x2': x2, 'y2': y2, 'speaking': bool(s >= 0)})
 			# print(frame, frame + int(25 * start_seconds))
 			scene_data = get_scene_by_frame_number(frame + int(25 * start_seconds))
 			if scene_data is not None:
@@ -632,24 +636,13 @@ def main(
 		num_frames = scene_data[1].frame_num - scene_data[0].frame_num
 		target_start_frame = int(scene_data[0].frame_num * (fps / 25))
 		target_num_frames = int(num_frames * (fps / 25))
-
-		if scene_num not in faces_by_scene:
-			for i in range(target_start_frame, target_start_frame + target_num_frames + 1):
-				interpolated_faces.append({
-					'frame_number': i,
-					'faces': []
-				})
-			continue
-
-		frames_in_scene = faces_by_scene[scene_num]
-		
 		# interpolate the faces in this scene
 		interpolated_frames = []
 		for i in range(target_start_frame, target_start_frame + target_num_frames + 1):
-			frame_num = int(i * (num_frames / target_num_frames)) - scene_data[0].frame_num
+			frame_num = int(i * (num_frames / target_num_frames)) - new_scenes[0][0].frame_num
 			interpolated_frames.append({
 				'frame_number': i,
-				'faces': [] if frame_num not in frames_in_scene else frames_in_scene[frame_num]
+				'faces': [] if frame_num not in faces_by_frame else faces_by_frame[frame_num]
 			})
 		interpolated_faces.extend(interpolated_frames)
 			
