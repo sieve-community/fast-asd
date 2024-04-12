@@ -120,79 +120,38 @@ def bb_intersection_over_union(boxA, boxB, evalCol = False):
 		iou = interArea / float(boxAArea + boxBArea - interArea)
 	return iou
 
-
-def track_shot(sceneFaces, frame_width, frame_height):
-	import supervision as sv
-	import numpy as np
-	
-    # track boxes with byteTrack
-	tracker = sv.ByteTrack(frame_rate=25)
-	out_frames = []
-	
-	if len(sceneFaces) == 0:
-		return []
-	
-	for frameFaces in sceneFaces:
-		box_list = [face['bbox'] for face in frameFaces]
-		conf_list = [face['conf'] for face in frameFaces]
-		class_id = [0 for face in frameFaces]
-		currentFrame = -1
-		for face in frameFaces:
-			currentFrame = face['frame']
+def track_shot(sceneFaces):
+	# CPU: Face tracking
+	iouThres  = 0.5     # Minimum IOU between consecutive face detections
+	tracks    = []
+	while True:
+		track     = []
+		for frameFaces in sceneFaces:
+			for face in frameFaces:
+				if track == []:
+					track.append(face)
+					frameFaces.remove(face)
+				elif face['frame'] - track[-1]['frame'] <= num_failed_det:
+					iou = bb_intersection_over_union(face['bbox'], track[-1]['bbox'])
+					if iou > iouThres:
+						track.append(face)
+						frameFaces.remove(face)
+						continue
+				else:
+					break
+		if track == []:
 			break
-		if len(box_list) == 0:
-			box_list = np.empty((0, 4))
-			conf_list = np.empty(0)
-			class_id = np.empty(0)
-		detections = sv.Detections(xyxy=np.array(box_list), confidence=np.array(conf_list), class_id=np.array(class_id))
-		new_detections = tracker.update_with_detections(detections)
-		xyxys = new_detections.xyxy
-		confidences = new_detections.confidence
-		class_ids = new_detections.class_id
-		tracker_ids = new_detections.tracker_id
-		new_boxes = []
-		for xyxy, confidence, class_id, tracker_id in zip(xyxys, confidences, class_ids, tracker_ids):
-			# Ensure the box coordinates are within the frame
-			x1 = max(0, round(xyxy[0]))
-			y1 = max(0, round(xyxy[1]))
-			x2 = min(int(frame_width), round(xyxy[2]))
-			y2 = min(int(frame_height), round(xyxy[3]))
-			new_boxes.append({
-				'bbox': [x1, y1, x2, y2],
-				'confidence': confidence,
-				'class_id': class_id,
-				'id': tracker_id,
-				'frame': currentFrame
-			})
-		out_frames.append(new_boxes)
-		currentFrame += 1
-	
-    # sort boxes by id
-	boxes_by_id = {}
-	for frame_boxes in out_frames:
-		for box in frame_boxes:
-			if box['id'] not in boxes_by_id:
-				boxes_by_id[box['id']] = []
-			# check min face size
-			assert box['bbox'][2] - box['bbox'][0] > min_face_size and box['bbox'][3] - box['bbox'][1] > min_face_size
-			boxes_by_id[box['id']].append(box)
-	
-    # create a track for each face
-	tracks = []
-	# each track is of the form {'frame': array([1, 2, 3, ...]), 'bbox': array([[x1, y1, x2, y2], [x1, y1, x2, y2], ...])}
-	for track_id, track_boxes in boxes_by_id.items():
-		if len(track_boxes) < min_track:
-			continue
-		frameNum = numpy.array([f['frame'] for f in track_boxes])
-		bboxes = numpy.array([numpy.array(f['bbox']) for f in track_boxes])
-		frameI = numpy.arange(frameNum[0], frameNum[-1]+1)
-		bboxesI    = []
-		for ij in range(0,4):
-			interpfn  = interp1d(frameNum, bboxes[:,ij])
-			bboxesI.append(interpfn(frameI))
-		bboxesI  = numpy.stack(bboxesI, axis=1)
-		if max(numpy.mean(bboxesI[:,2]-bboxesI[:,0]), numpy.mean(bboxesI[:,3]-bboxesI[:,1])) > min_face_size:
-			tracks.append({'frame':frameI,'bbox':bboxesI})
+		elif len(track) > min_track:
+			frameNum    = numpy.array([ f['frame'] for f in track ])
+			bboxes      = numpy.array([numpy.array(f['bbox']) for f in track])
+			frameI      = numpy.arange(frameNum[0],frameNum[-1]+1)
+			bboxesI    = []
+			for ij in range(0,4):
+				interpfn  = interp1d(frameNum, bboxes[:,ij])
+				bboxesI.append(interpfn(frameI))
+			bboxesI  = numpy.stack(bboxesI, axis=1)
+			if max(numpy.mean(bboxesI[:,2]-bboxesI[:,0]), numpy.mean(bboxesI[:,3]-bboxesI[:,1])) > min_face_size:
+				tracks.append({'frame':frameI,'bbox':bboxesI})
 	return tracks
 
 def crop_video(track, cropFile, start_frame = 0):
@@ -496,8 +455,6 @@ def main(
 	if (end_seconds - start_seconds) * fps < STORE_FRAMES_IN_MEMORY_THRESHOLD:
 		# use cv2 to extract frames
 		vidcap = cv2.VideoCapture(video_path)
-		VIDEO_WIDTH = int(vidcap.get(cv2.CAP_PROP_FRAME_WIDTH))
-		VIDEO_HEIGHT = int(vidcap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 		frames = []
 		frames_number_to_read = []
 		for i in range(int((end_seconds - start_seconds) * 25) + 1):
@@ -528,10 +485,6 @@ def main(
 		command = ("ffmpeg -y -i '%s' -vf fps=25 -ss %s -t %s -threads %d -f image2 %s -loglevel panic" % \
 			(video_path, start, duration, data_loader_thread, os.path.join(pyframesPath, '%06d.jpg')))
 		subprocess.call(command, shell=True, stdout=None)
-		# get VIDEO_WIDTH and VIDEO_HEIGHT using one of the frames
-		frame = cv2.imread(os.path.join(pyframesPath, '000001.jpg'))
-		VIDEO_WIDTH = frame.shape[1]
-		VIDEO_HEIGHT = frame.shape[0]
 		# sys.stderr.write(time.strftime("%Y-%m-%d %H:%M:%S") + " Extract the frames and save in %s \r\n" %(pyframesPath))
 	
 	print("Video frames extracted in %.3f seconds."%(time.time() - t))
@@ -604,7 +557,7 @@ def main(
 	first_frame = max(int(start_seconds * 25), 0)
 	for shot in new_scenes:
 		if shot[1].frame_num - shot[0].frame_num >= min_track: # Discard the shot frames less than minTrack frames
-			allTracks.extend(track_shot(faces[max(0, shot[0].frame_num - first_frame):shot[1].frame_num - first_frame], VIDEO_WIDTH, VIDEO_HEIGHT)) # 'frames' to present this tracks' timestep, 'bbox' presents the location of the faces
+			allTracks.extend(track_shot(faces[max(0, shot[0].frame_num - first_frame):shot[1].frame_num - first_frame])) # 'frames' to present this tracks' timestep, 'bbox' presents the location of the faces
 	print("Faces tracked in %.3f seconds."%(time.time() - t))
 
 	print("Cropping faces...")
@@ -694,11 +647,9 @@ def main(
 		interpolated_frames = []
 		for i in range(target_start_frame, target_start_frame + target_num_frames + 1):
 			frame_num = int(i * (num_frames / target_num_frames)) - scene_data[0].frame_num
-			# find the closest frame in the scene
-			closest_frame = min(frames_in_scene.keys(), key=lambda x:abs(x-frame_num))
 			interpolated_frames.append({
 				'frame_number': i,
-				'faces': frames_in_scene[closest_frame]
+				'faces': [] if frame_num not in frames_in_scene else frames_in_scene[frame_num]
 			})
 		interpolated_faces.extend(interpolated_frames)
 			
