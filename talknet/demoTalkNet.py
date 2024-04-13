@@ -640,6 +640,8 @@ def main(
 		interpolated_frames = []
 		for i in range(target_start_frame, target_start_frame + target_num_frames + 1):
 			frame_num = int(i * (num_frames / target_num_frames)) - new_scenes[0][0].frame_num
+			if frame_num not in faces_by_frame:
+				frame_num = int(i * (25 / fps)) - new_scenes[0][0].frame_num
 			interpolated_frames.append({
 				'frame_number': i,
 				'faces': [] if frame_num not in faces_by_frame else faces_by_frame[frame_num]
