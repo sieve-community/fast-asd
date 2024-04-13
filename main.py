@@ -100,7 +100,7 @@ def process(
     start_time: float = 0,
     end_time: float = -1,
     processing_fps: float = 2,
-    face_size_threshold: float = 0.2,
+    face_size_threshold: float = 0.5,
 ):
     '''
     :param file: The video file to process
@@ -111,7 +111,7 @@ def process(
     :param start_time: The seconds into the video to start processing from. Defaults to 0.
     :param end_time: The seconds into the video to stop processing at. Defaults to -1, which means the end of the video.
     :param processing_fps: The framerate to run object detection at for speaker detection. Defaults to 2.
-    :param face_size_threshold: A threshold that determines the minimum size of a face box to be considered a face (smaller values means smaller faces are allowed) to be used in the speaker detection model. Defaults to 0.2. Typical values should range between 0 and 1.0.
+    :param face_size_threshold: A threshold that determines the minimum size of a face to run speaker detection on. Defaults to 0.5. Lower values allow for smaller faces to be used.
     '''
     width, height = get_video_dimensions(file.path)
     original_video_width = width
@@ -228,7 +228,7 @@ def process(
             # onyl keep the face boxes that are greater than 1/50 of the frame size
             for box in frame['boxes']:
                 box_area = (box['x2'] - box['x1']) * (box['y2'] - box['y1'])
-                if box_area > frame_size / (face_size_threshold * 1000) and box['confidence'] > 0.5:
+                if box_area > (face_size_threshold / 100) * frame_size and box['confidence'] > 0.5:
                     new_boxes.append(box)
             for box in new_boxes:
                 if box['class_name'] != "face":
