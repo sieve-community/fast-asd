@@ -113,6 +113,15 @@ def process(
     :param processing_fps: The framerate to run object detection at for speaker detection. Defaults to 2.
     :param face_size_threshold: A threshold that determines the minimum size of a face to run speaker detection on. Defaults to 0.5. Lower values allow for smaller faces to be used.
     '''
+    # handle webm files by converting them to mp4
+    if file.path.endswith(".webm"):
+        print("Converting webm file to mp4...")
+        import os
+        import subprocess
+        new_path = file.path.replace(".webm", ".mp4")
+        subprocess.run(["ffmpeg", "-y", "-i", file.path, "-c", "copy", new_path])
+        file = sieve.File(path=new_path)
+
     width, height = get_video_dimensions(file.path)
     original_video_width = width
     original_video_height = height
