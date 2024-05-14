@@ -666,4 +666,7 @@ def main(
 		# subprocess.call(["ffmpeg", "-y", "-i", os.path.join(pyaviPath,'video_out.avi'), os.path.join(pyaviPath,'video_out.mp4')])
 		return interpolated_faces, os.path.join(pyaviPath,'video_out.mp4')
 	
+	if 'frames' in locals():
+		del frames
+	
 	return interpolated_faces

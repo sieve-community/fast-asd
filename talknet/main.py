@@ -65,6 +65,8 @@ class TalkNetASD:
         :param in_memory_threshold: the maximum number of frames to load in memory at once. can speed up processing. if 0, this feature is disabled.
         :return: if return_visualization is True, the first element of the tuple is the output of the model, and the second element is the visualization of the video. Otherwise, the first element is the output of the model.
         """
+        import gc
+        gc.collect()
         from demoTalkNet import main
         def transform_out(out):
             outputs = []
