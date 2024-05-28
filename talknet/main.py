@@ -40,7 +40,8 @@ metadata = sieve.Metadata(
     ],
     cuda_version="11.8",
     gpu=sieve.gpu.L4(split=3),
-    metadata=metadata
+    metadata=metadata,
+    restart_on_error=False,
 )
 class TalkNetASD:
     def __setup__(self):
