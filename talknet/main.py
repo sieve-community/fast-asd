@@ -37,11 +37,12 @@ metadata = sieve.Metadata(
         "mkdir -p /root/.cache/models",
         "gdown --id 1J-PDWDAkYCdT8T2Nxn3Q_-iOHH_t-9YP -O /root/.cache/models/pretrain_TalkSet.model",
         "pip install supervision",
+        "pip install 'imageio[ffmpeg]'",
+        "pip install av==9.2.0"
     ],
     cuda_version="11.8",
     gpu=sieve.gpu.L4(split=3),
-    metadata=metadata,
-    restart_on_error=False,
+    metadata=metadata
 )
 class TalkNetASD:
     def __setup__(self):

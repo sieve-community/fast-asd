@@ -453,8 +453,8 @@ def main(
 	t = time.time()
 	# if less than 5000 frames, store in memory
 	if (end_seconds - start_seconds) * fps < STORE_FRAMES_IN_MEMORY_THRESHOLD:
-		# use cv2 to extract frames
-		vidcap = cv2.VideoCapture(video_path)
+		# use imageio to extract frames
+		import imageio
 		frames = []
 		frames_number_to_read = []
 		for i in range(int((end_seconds - start_seconds) * 25) + 1):
@@ -462,24 +462,42 @@ def main(
 			if start_frame <= frame_number < end_frame:
 				frames_number_to_read.append(frame_number)
 		current_frame_number = start_frame
-		vidcap.set(cv2.CAP_PROP_POS_FRAMES, current_frame_number)
-		ret, current_frame = vidcap.read()
+		cap = imageio.get_reader(video_path)
+		try:
+			if start_frame != 0:
+				cap.set_image_index(start_frame)
+			print(f"load & seek time: {round(time.time() - t, 2)}s")
+			current_frame = cap.get_next_data()
+			current_frame = cv2.cvtColor(current_frame, cv2.COLOR_RGB2BGR)
+		except IndexError:
+			print(f"No frame at index {current_frame_number}")
 		count = 0
 		for p in frames_number_to_read:
+			frame_to_process = None
 			if p == current_frame_number:
-				frames.append(current_frame)
-				count += 1
+				frame_to_process = current_frame
+				frame_to_process = cv2.cvtColor(frame_to_process, cv2.COLOR_RGB2BGR)
 			else:
-				new_frame_number = current_frame_number
-				while new_frame_number < p:
-					ret, new_frame = vidcap.read()
-					new_frame_number += 1
-				if ret:
+				new_frame_number = p
+				if new_frame_number != current_frame_number + 1:
+					cap.set_image_index(new_frame_number)
+				try:
+					new_frame = cap.get_next_data()
+				except IndexError:
+					break
+				if new_frame is not None:
 					current_frame_number = p
 					current_frame = new_frame
-				frames.append(current_frame)
+					frame_to_process = current_frame
+					frame_to_process = cv2.cvtColor(frame_to_process, cv2.COLOR_RGB2BGR)
+				else:
+					break
+			if frame_to_process is not None:
+				frames.append(frame_to_process)
+				count += 1
+		print(f"Total frames processed: {count}")
 
-		vidcap.release()
+		cap.close()
 	else:
 		# Temporarily commenting out the original code for extracting video frames
 		command = ("ffmpeg -y -i '%s' -vf fps=25 -ss %s -t %s -threads %d -f image2 %s -loglevel panic" % \
