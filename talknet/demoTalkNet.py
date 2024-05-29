@@ -486,47 +486,54 @@ def main(
 					frames.append(current_frame)
 			vidcap.release()
 		else:
-			print("Using imageio to extract frames...")
 			vidcap.release()
-			import imageio
-
-			frames = []
-			cap = imageio.get_reader(video_path)
 			try:
+				print("Using imageio to extract frames...")
+				import imageio
+				frames = []
+				cap = imageio.get_reader(video_path)
 				if start_frame != 0:
 					cap.set_image_index(start_frame)
+
 				print(f"load & seek time: {round(time.time() - t, 2)}s")
 				current_frame = cap.get_next_data()
 				current_frame = cv2.cvtColor(current_frame, cv2.COLOR_RGB2BGR)
-			except IndexError:
-				raise ValueError(f"Could not read frame at index {current_frame_number}")
-			count = 0
-			for p in frames_number_to_read:
-				frame_to_process = None
-				if p == current_frame_number:
-					frame_to_process = current_frame
-					frame_to_process = cv2.cvtColor(frame_to_process, cv2.COLOR_RGB2BGR)
-				else:
-					new_frame_number = p
-					if new_frame_number != current_frame_number + 1:
-						cap.set_image_index(new_frame_number)
-					try:
-						new_frame = cap.get_next_data()
-					except IndexError:
-						break
-					if new_frame is not None:
-						current_frame_number = p
-						current_frame = new_frame
+				count = 0
+				for p in frames_number_to_read:
+					frame_to_process = None
+					if p == current_frame_number:
 						frame_to_process = current_frame
 						frame_to_process = cv2.cvtColor(frame_to_process, cv2.COLOR_RGB2BGR)
 					else:
-						break
-				if frame_to_process is not None:
-					frames.append(frame_to_process)
-					count += 1
-			print(f"Total frames processed: {count}")
-
-			cap.close()
+						new_frame_number = p
+						if new_frame_number != current_frame_number + 1:
+							cap.set_image_index(new_frame_number)
+						try:
+							new_frame = cap.get_next_data()
+						except IndexError:
+							break
+						if new_frame is not None:
+							current_frame_number = p
+							current_frame = new_frame
+							frame_to_process = current_frame
+							frame_to_process = cv2.cvtColor(frame_to_process, cv2.COLOR_RGB2BGR)
+						else:
+							break
+					if frame_to_process is not None:
+						frames.append(frame_to_process)
+						count += 1
+				print(f"Total frames processed: {count}")
+				cap.close()
+			except IndexError:
+				try:
+					print("Failed...Using ffmpeg to extract frames...")
+					command = ("ffmpeg -y -i '%s' -vf fps=25 -ss %s -t %s -threads %d -f image2 %s -loglevel panic" % \
+						(video_path, start, duration, data_loader_thread, os.path.join(pyframesPath, '%06d.jpg')))
+					subprocess.call(command, shell=True, stdout=None)
+					# read the frames from the extracted video frames
+					frames = [cv2.imread(os.path.join(pyframesPath, '%06d.jpg' % i)) for i in range(int(duration * fps))]
+				except Exception as e:
+					raise e
 	else:
 		# Temporarily commenting out the original code for extracting video frames
 		command = ("ffmpeg -y -i '%s' -vf fps=25 -ss %s -t %s -threads %d -f image2 %s -loglevel panic" % \
